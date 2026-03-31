@@ -4,17 +4,22 @@ import (
 	"net/http"
 
 	"github.com/Ramsi97/flowra-back-end/internal/auth/domain"
+	"github.com/Ramsi97/flowra-back-end/pkg/cloudinary"
 	"github.com/gin-gonic/gin"
 )
 
 // AuthHandler holds the use-case dependency.
 type AuthHandler struct {
 	usecase domain.AuthUseCase
+	cld     *cloudinary.Client
 }
 
 // NewAuthHandler constructs an AuthHandler.
-func NewAuthHandler(uc domain.AuthUseCase) *AuthHandler {
-	return &AuthHandler{usecase: uc}
+func NewAuthHandler(uc domain.AuthUseCase, cld *cloudinary.Client) *AuthHandler {
+	return &AuthHandler{
+		usecase: uc,
+		cld:     cld,
+	}
 }
 
 // Register godoc
@@ -24,6 +29,23 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	if err := c.ShouldBind(&user); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
+	}
+
+	// Handle profile picture upload if file is present
+	if user.ProfilePicture != nil {
+		file, err := user.ProfilePicture.Open()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to open profile picture"})
+			return
+		}
+		defer file.Close()
+
+		url, err := h.cld.UploadProfilePicture(c.Request.Context(), file, user.Email)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to upload profile picture"})
+			return
+		}
+		user.ProfilePictureURL = url
 	}
 
 	if err := h.usecase.Register(&user); err != nil {

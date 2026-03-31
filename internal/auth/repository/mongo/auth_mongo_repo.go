@@ -19,7 +19,7 @@ type userDocument struct {
 	Email          string             `bson:"email"`
 	HashedPassword string             `bson:"hashed_password"`
 	Gender         string             `bson:"gender"`
-	ProfilePicture string             `bson:"profile_picture,omitempty"`
+	ProfilePicture string             `bson:"profile_picture_url,omitempty"`
 	CreatedAt      time.Time          `bson:"created_at"`
 }
 
@@ -43,6 +43,7 @@ func (r *authMongoRepo) CreateUser(ctx context.Context, user *domain.User) error
 		Email:          user.Email,
 		HashedPassword: user.Password, // already hashed by usecase
 		Gender:         user.Gender,
+		ProfilePicture: user.ProfilePictureURL,
 		CreatedAt:      time.Now(),
 	}
 	_, err := r.collection.InsertOne(ctx, doc)

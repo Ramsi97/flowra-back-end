@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"errors"
+	"regexp"
 	"time"
 
 	"github.com/Ramsi97/flowra-back-end/internal/auth/domain"
@@ -28,6 +29,12 @@ func NewAuthUseCase(repo interfaces.AuthRepository, jwtSecret string) domain.Aut
 func (u *authusecase) Register(user *domain.User) error {
 	if user.Email == "" || user.Password == "" || user.FullName == "" {
 		return errors.New("full_name, email, and password are required")
+	}
+
+	// Email format validation
+	emailRegex := regexp.MustCompile(`^[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,4}$`)
+	if !emailRegex.MatchString(user.Email) {
+		return errors.New("invalid email format")
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

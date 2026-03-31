@@ -10,6 +10,7 @@ import (
 	"github.com/Ramsi97/flowra-back-end/internal/auth/repository/mongo"
 	"github.com/Ramsi97/flowra-back-end/internal/auth/usecase"
 	"github.com/Ramsi97/flowra-back-end/internal/middleware"
+	"github.com/Ramsi97/flowra-back-end/pkg/cloudinary"
 	"github.com/gin-gonic/gin"
 	driver "go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -40,17 +41,28 @@ func main() {
 
 	db := client.Database(cfg.DBName)
 
-	// 3. Build dependency graph: repo → usecase → handler
+	// 3. Initialize Cloudinary
+	cld, err := cloudinary.NewClient(
+		cfg.CloudinaryCloudName,
+		cfg.CloudinaryAPIKey,
+		cfg.CloudinaryAPISecret,
+		cfg.CloudinaryFolder,
+	)
+	if err != nil {
+		log.Fatalf("Failed to initialize Cloudinary: %v", err)
+	}
+
+	// 4. Build dependency graph: repo → usecase → handler
 	authRepo := mongo.NewAuthMongoRepo(db)
 	authUseCase := usecase.NewAuthUseCase(authRepo, cfg.JWTSecret)
-	authHandler := authhttp.NewAuthHandler(authUseCase)
+	authHandler := authhttp.NewAuthHandler(authUseCase, cld)
 
-	// 4. Set up Gin router and routes
+	// 5. Set up Gin router and routes
 	router := gin.Default()
 	jwtMW := middleware.JWTMiddleware(cfg.JWTSecret)
 	authhttp.SetupRoutes(router, authHandler, jwtMW)
 
-	// 5. Start the server
+	// 6. Start the server
 	log.Printf("Server running on :%s", cfg.Port)
 	if err := router.Run(":" + cfg.Port); err != nil {
 		log.Fatalf("Server error: %v", err)
