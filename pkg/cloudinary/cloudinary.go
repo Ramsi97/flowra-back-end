@@ -24,8 +24,8 @@ func NewClient(cloudName, apiKey, apiSecret, folder string) (*Client, error) {
 	return &Client{cld: cld, folder: folder}, nil
 }
 
-// UploadProfilePicture uploads a multipart file to Cloudinary and returns the secure URL.
-func (c *Client) UploadProfilePicture(ctx context.Context, file multipart.File, filename string) (string, error) {
+// UploadImage uploads a multipart file to Cloudinary and returns the secure URL.
+func (c *Client) UploadImage(ctx context.Context, file multipart.File, filename string) (string, error) {
 	resp, err := c.cld.Upload.Upload(ctx, file, uploader.UploadParams{
 		Folder:         c.folder,
 		PublicID:       filename,

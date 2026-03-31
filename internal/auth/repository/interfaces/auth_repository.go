@@ -2,6 +2,7 @@ package interfaces
 
 import (
 	"context"
+
 	"github.com/Ramsi97/flowra-back-end/internal/auth/domain"
 )
 

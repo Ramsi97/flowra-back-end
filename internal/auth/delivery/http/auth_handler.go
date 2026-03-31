@@ -40,7 +40,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		}
 		defer file.Close()
 
-		url, err := h.cld.UploadProfilePicture(c.Request.Context(), file, user.Email)
+		url, err := h.cld.UploadImage(c.Request.Context(), file, user.Email)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to upload profile picture"})
 			return
