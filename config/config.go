@@ -16,6 +16,7 @@ type Config struct {
 	CloudinaryAPIKey    string
 	CloudinaryAPISecret string
 	CloudinaryFolder    string
+	GeminiAPIKey        string // ready for real AI integration
 }
 
 func LoadConfig() *Config {
@@ -32,6 +33,7 @@ func LoadConfig() *Config {
 		CloudinaryAPIKey:    getEnv("CLOUDINARY_API_KEY", ""),
 		CloudinaryAPISecret: getEnv("CLOUDINARY_API_SECRET", ""),
 		CloudinaryFolder:    getEnv("CLOUDINARY_FOLDER", "flowra"),
+		GeminiAPIKey:        getEnv("GEMINI_API_KEY", ""),
 	}
 }
 

@@ -10,6 +10,12 @@ import (
 	"github.com/Ramsi97/flowra-back-end/internal/auth/repository/mongo"
 	"github.com/Ramsi97/flowra-back-end/internal/auth/usecase"
 	"github.com/Ramsi97/flowra-back-end/internal/middleware"
+	schedhttp "github.com/Ramsi97/flowra-back-end/internal/schedule/delivery/http"
+	schedmongo "github.com/Ramsi97/flowra-back-end/internal/schedule/repository/mongo"
+	schedusecase "github.com/Ramsi97/flowra-back-end/internal/schedule/usecase"
+	taskhttp "github.com/Ramsi97/flowra-back-end/internal/task/delivery/http"
+	taskmongo "github.com/Ramsi97/flowra-back-end/internal/task/repository/mongo"
+	taskusecase "github.com/Ramsi97/flowra-back-end/internal/task/usecase"
 	"github.com/Ramsi97/flowra-back-end/pkg/cloudinary"
 	"github.com/gin-gonic/gin"
 	driver "go.mongodb.org/mongo-driver/mongo"
@@ -52,17 +58,30 @@ func main() {
 		log.Fatalf("Failed to initialize Cloudinary: %v", err)
 	}
 
-	// 4. Build dependency graph: repo → usecase → handler
+	// 4. Auth layer
 	authRepo := mongo.NewAuthMongoRepo(db)
 	authUseCase := usecase.NewAuthUseCase(authRepo, cfg.JWTSecret)
 	authHandler := authhttp.NewAuthHandler(authUseCase, cld)
 
-	// 5. Set up Gin router and routes
+	// 5. Task layer
+	taskRepo := taskmongo.NewTaskMongoRepo(db)
+	taskUseCase := taskusecase.NewTaskUseCase(taskRepo)
+	taskHandler := taskhttp.NewTaskHandler(taskUseCase)
+
+	// 6. Schedule layer
+	schedRepo := schedmongo.NewScheduleMongoRepo(db)
+	schedUseCase := schedusecase.NewScheduleUseCase(schedRepo, taskRepo)
+	schedHandler := schedhttp.NewScheduleHandler(schedUseCase)
+
+	// 7. Router + middleware
 	router := gin.Default()
 	jwtMW := middleware.JWTMiddleware(cfg.JWTSecret)
-	authhttp.SetupRoutes(router, authHandler, jwtMW)
 
-	// 6. Start the server
+	authhttp.SetupRoutes(router, authHandler, jwtMW)
+	taskhttp.SetupRoutes(router, taskHandler, jwtMW)
+	schedhttp.SetupRoutes(router, schedHandler, jwtMW)
+
+	// 8. Start server
 	log.Printf("Server running on :%s", cfg.Port)
 	if err := router.Run(":" + cfg.Port); err != nil {
 		log.Fatalf("Server error: %v", err)
