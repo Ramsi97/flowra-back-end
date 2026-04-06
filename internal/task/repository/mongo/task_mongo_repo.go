@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/Ramsi97/flowra-back-end/internal/task/domain"
+	"github.com/Ramsi97/flowra-back-end/internal/task/repository/interfaces"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -30,7 +31,7 @@ type taskMongoRepo struct {
 	collection *mongo.Collection
 }
 
-func NewTaskMongoRepo(db *mongo.Database) *taskMongoRepo {
+func NewTaskMongoRepo(db *mongo.Database) interfaces.TaskRepository {
 	return &taskMongoRepo{collection: db.Collection("tasks")}
 }
 

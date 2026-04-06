@@ -13,6 +13,7 @@ type User struct {
 	Gender            string                `form:"gender"            json:"gender"`
 	ProfilePicture    *multipart.FileHeader `form:"profile_picture"   json:"-"`
 	ProfilePictureURL string                `form:"-"                 json:"profile_picture_url"`
+	RestDays          []int                 `form:"rest_days"         json:"rest_days"` // 0=Sun, 6=Sat
 	CreatedAt         time.Time             `form:"created_at"        json:"created_at"`
 }
 

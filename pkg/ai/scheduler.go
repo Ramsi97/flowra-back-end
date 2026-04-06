@@ -8,18 +8,19 @@ import (
 )
 
 // UserPrefs holds scheduling preferences.
-// V1: hardcoded defaults — will be moved to user profile in a future iteration.
 type UserPrefs struct {
 	WorkStart time.Time // only Hour/Minute are used; date is ignored
 	WorkEnd   time.Time
+	RestDays  []int // 0=Sun, 6=Sat
 }
 
-// DefaultPrefs returns the default 9 AM – 6 PM working window.
+// DefaultPrefs returns the default 9 AM – 6 PM working window with Sat/Sun rest.
 func DefaultPrefs(forDate time.Time) UserPrefs {
 	y, m, d := forDate.Date()
 	return UserPrefs{
 		WorkStart: time.Date(y, m, d, 9, 0, 0, 0, time.UTC),
 		WorkEnd:   time.Date(y, m, d, 18, 0, 0, 0, time.UTC),
+		RestDays:  []int{0, 6},
 	}
 }
 
@@ -35,19 +36,39 @@ type Slot struct {
 //
 // It sorts todo tasks by (Priority ASC, Deadline ASC) and packs them
 // sequentially inside the user's work window.
-// Tasks that don't fit are skipped gracefully.
 //
-// Replace body with real AI (Gemini) call in a later iteration.
-func BuildSchedule(tasks []taskdomain.Task, prefs UserPrefs) ([]Slot, error) {
-	// Filter to "todo" tasks only.
-	var todos []taskdomain.Task
-	for _, t := range tasks {
-		if t.Status == "todo" {
-			todos = append(todos, t)
+// Now supports:
+// 1. Rest Days: Returns empty if today is a rest day.
+// 2. Exceptions: Applies date-specific overrides from the 'exceptions' map.
+func BuildSchedule(tasks []taskdomain.Task, exceptions map[string]taskdomain.TaskException, prefs UserPrefs) ([]Slot, error) {
+	// 1. Check if today is a rest day.
+	today := int(prefs.WorkStart.Weekday())
+	for _, rd := range prefs.RestDays {
+		if rd == today {
+			return []Slot{}, nil
 		}
 	}
 
-	// Sort: priority ascending (1 = highest), then earliest deadline first.
+	// 2. Filter to "todo" tasks and apply exceptions.
+	var todos []taskdomain.Task
+	for _, t := range tasks {
+		if t.Status != "todo" {
+			continue
+		}
+
+		// Apply Exception if exists for this task.
+		if ex, ok := exceptions[t.ID]; ok {
+			if ex.IsSkipped {
+				continue
+			}
+			if ex.NewDuration != "" {
+				t.Duration = ex.NewDuration
+			}
+		}
+		todos = append(todos, t)
+	}
+
+	// 3. Sort: priority ascending (1 = highest), then earliest deadline first.
 	sort.Slice(todos, func(i, j int) bool {
 		if todos[i].Priority != todos[j].Priority {
 			return todos[i].Priority < todos[j].Priority
@@ -61,7 +82,16 @@ func BuildSchedule(tasks []taskdomain.Task, prefs UserPrefs) ([]Slot, error) {
 	for _, task := range todos {
 		dur := parseDuration(task.Duration)
 		if dur <= 0 {
-			dur = 60 * time.Minute // default 60 min if unparseable
+			dur = 60 * time.Minute
+		}
+
+		// Handle NewStartTime exception if it exists.
+		if ex, ok := exceptions[task.ID]; ok && ex.NewStartTime != nil {
+			// If an exception forces a start time, we jump the cursor.
+			// This might create a gap (intended).
+			if ex.NewStartTime.After(cursor) {
+				cursor = *ex.NewStartTime
+			}
 		}
 
 		if cursor.Add(dur).After(prefs.WorkEnd) {
@@ -80,7 +110,6 @@ func BuildSchedule(tasks []taskdomain.Task, prefs UserPrefs) ([]Slot, error) {
 	return slots, nil
 }
 
-// parseDuration parses strings like "60m", "1h30m", "2h".
 func parseDuration(s string) time.Duration {
 	d, err := time.ParseDuration(s)
 	if err != nil {

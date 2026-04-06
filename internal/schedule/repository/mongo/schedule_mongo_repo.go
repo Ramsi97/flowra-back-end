@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/Ramsi97/flowra-back-end/internal/schedule/domain"
+	"github.com/Ramsi97/flowra-back-end/internal/schedule/repository/interfaces"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -19,6 +20,7 @@ type scheduleDocument struct {
 	Title     string             `bson:"title"`
 	StartTime time.Time          `bson:"start_time"`
 	EndTime   time.Time          `bson:"end_time"`
+	IsHard    bool               `bson:"is_hard"`
 	Status    string             `bson:"status"`
 	CreatedAt time.Time          `bson:"created_at"`
 	UpdatedAt time.Time          `bson:"updated_at"`
@@ -28,7 +30,7 @@ type scheduleMongoRepo struct {
 	col *mongo.Collection
 }
 
-func NewScheduleMongoRepo(db *mongo.Database) *scheduleMongoRepo {
+func NewScheduleMongoRepo(db *mongo.Database) interfaces.ScheduleRepository {
 	return &scheduleMongoRepo{col: db.Collection("schedule_items")}
 }
 
@@ -40,6 +42,7 @@ func fromDoc(d scheduleDocument) domain.ScheduleItem {
 		Title:     d.Title,
 		StartTime: d.StartTime,
 		EndTime:   d.EndTime,
+		IsHard:    d.IsHard,
 		Status:    d.Status,
 		CreatedAt: d.CreatedAt,
 		UpdatedAt: d.UpdatedAt,
@@ -54,7 +57,6 @@ func toOID(id string) (primitive.ObjectID, error) {
 	return oid, nil
 }
 
-// InsertMany batch-inserts schedule items and back-fills their IDs.
 func (r *scheduleMongoRepo) InsertMany(ctx context.Context, items []domain.ScheduleItem) error {
 	if len(items) == 0 {
 		return nil
@@ -71,6 +73,7 @@ func (r *scheduleMongoRepo) InsertMany(ctx context.Context, items []domain.Sched
 			Title:     items[i].Title,
 			StartTime: items[i].StartTime,
 			EndTime:   items[i].EndTime,
+			IsHard:    items[i].IsHard,
 			Status:    items[i].Status,
 			CreatedAt: items[i].CreatedAt,
 			UpdatedAt: items[i].UpdatedAt,
@@ -133,7 +136,6 @@ func (r *scheduleMongoRepo) FindByUserAndDateRange(ctx context.Context, userID s
 	return items, cursor.Err()
 }
 
-// UpdateItemTimes updates start_time and end_time atomically.
 func (r *scheduleMongoRepo) UpdateItemTimes(ctx context.Context, id string, start, end time.Time) error {
 	oid, err := toOID(id)
 	if err != nil {
@@ -146,7 +148,6 @@ func (r *scheduleMongoRepo) UpdateItemTimes(ctx context.Context, id string, star
 	return err
 }
 
-// Update patches arbitrary fields based on the input struct.
 func (r *scheduleMongoRepo) Update(ctx context.Context, id string, input domain.UpdateItemInput) (*domain.ScheduleItem, error) {
 	oid, err := toOID(id)
 	if err != nil {

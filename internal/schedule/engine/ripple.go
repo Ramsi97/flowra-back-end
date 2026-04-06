@@ -6,52 +6,80 @@ import (
 	"github.com/Ramsi97/flowra-back-end/internal/schedule/domain"
 )
 
-// workDayEnd is the latest allowed end time (11 PM) to prevent items spilling past midnight.
-const workDayEndHour = 23
+// RippleResult contains the updated items and any conflicts encountered.
+type RippleResult struct {
+	Items     []domain.ScheduleItem
+	Conflicts []domain.ScheduleItem // Soft conflicts: items that overlap with Hard tasks
+}
 
-// ApplyRipple pushes all items after changedIdx forward (or backward) to be
-// contiguous with the changed item, respecting the day boundary.
+const workDayEndHour = 23
+const workDayStartHour = 9
+
+// ApplyRipple pushes all items after changedIdx forward to be
+// contiguous with the changed item, respecting the day boundary and RestDays.
 //
-// Contract:
-//   - items must be sorted by StartTime (ascending).
-//   - items[changedIdx] already has its new StartTime / EndTime set.
-//   - All items with index > changedIdx on the same day are pushed forward.
-func ApplyRipple(items []domain.ScheduleItem, changedIdx int) []domain.ScheduleItem {
+// New features:
+// 1. Hard Task respect: If we hit a hard task, we stop rippling and flag a conflict.
+// 2. Rest Days: If a task overflows past midnight, it skips user-defined rest days.
+func ApplyRipple(items []domain.ScheduleItem, changedIdx int, restDays []int) RippleResult {
 	if changedIdx >= len(items)-1 {
-		return items // nothing to ripple
+		return RippleResult{Items: items}
 	}
 
-	ref := items[changedIdx]
-	dayEndBase := time.Date(ref.EndTime.Year(), ref.EndTime.Month(), ref.EndTime.Day(),
-		workDayEndHour, 0, 0, 0, ref.EndTime.Location())
+	res := RippleResult{
+		Items:     items,
+		Conflicts: []domain.ScheduleItem{},
+	}
 
+	ref := res.Items[changedIdx]
 	cursor := ref.EndTime
 
-	for i := changedIdx + 1; i < len(items); i++ {
-		duration := items[i].EndTime.Sub(items[i].StartTime)
-
-		// Stop rippling if item is on a different day.
-		if items[i].StartTime.YearDay() != ref.StartTime.YearDay() ||
-			items[i].StartTime.Year() != ref.StartTime.Year() {
-			break
+	for i := changedIdx + 1; i < len(res.Items); i++ {
+		// If we hit a Hard task (like a meeting), the ripple MUST STOP.
+		// We flag a conflict and return early.
+		if res.Items[i].IsHard {
+			// If our current cursor (where the item should start) is after
+			// the hard task's start time, we have a conflict.
+			if cursor.After(res.Items[i].StartTime) {
+				res.Conflicts = append(res.Conflicts, res.Items[i])
+				break
+			}
 		}
 
-		newStart := cursor
-		newEnd := newStart.Add(duration)
+		duration := res.Items[i].EndTime.Sub(res.Items[i].StartTime)
 
-		// Clamp to work-day boundary — truncate duration rather than overflow.
-		if newEnd.After(dayEndBase) {
-			newEnd = dayEndBase
-		}
-		if newStart.After(dayEndBase) {
-			// No more room; leave remaining items untouched.
-			break
+		// Handle multi-day overflow
+		// If cursor > 11 PM or day changes, push to next work day
+		dayEnd := time.Date(cursor.Year(), cursor.Month(), cursor.Day(), workDayEndHour, 0, 0, 0, cursor.Location())
+		if cursor.After(dayEnd) || cursor.Equal(dayEnd) {
+			cursor = nextWorkDay(cursor, restDays)
 		}
 
-		items[i].StartTime = newStart
-		items[i].EndTime = newEnd
-		cursor = newEnd
+		res.Items[i].StartTime = cursor
+		res.Items[i].EndTime = cursor.Add(duration)
+		cursor = res.Items[i].EndTime
 	}
 
-	return items
+	return res
+}
+
+// nextWorkDay finds the next 9 AM start time, skipping any rest days.
+func nextWorkDay(curr time.Time, restDays []int) time.Time {
+	next := curr.AddDate(0, 0, 1)
+	next = time.Date(next.Year(), next.Month(), next.Day(), workDayStartHour, 0, 0, 0, next.Location())
+
+	for isRestDay(next, restDays) {
+		next = next.AddDate(0, 0, 1)
+	}
+	return next
+}
+
+func isRestDay(t time.Time, restDays []int) bool {
+	wd := int(t.Weekday())
+	for _, rd := range restDays {
+		if rd == wd {
+			return true
+		}
+	}
+	return false
 }

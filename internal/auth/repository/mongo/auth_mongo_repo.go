@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/Ramsi97/flowra-back-end/internal/auth/domain"
+	"github.com/Ramsi97/flowra-back-end/internal/auth/repository/interfaces"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -20,6 +21,7 @@ type userDocument struct {
 	HashedPassword string             `bson:"hashed_password"`
 	Gender         string             `bson:"gender"`
 	ProfilePicture string             `bson:"profile_picture_url,omitempty"`
+	RestDays       []int              `bson:"rest_days"`
 	CreatedAt      time.Time          `bson:"created_at"`
 }
 
@@ -28,7 +30,7 @@ type authMongoRepo struct {
 }
 
 // NewAuthMongoRepo creates a new MongoDB-backed AuthRepository.
-func NewAuthMongoRepo(db *mongo.Database) *authMongoRepo {
+func NewAuthMongoRepo(db *mongo.Database) interfaces.AuthRepository {
 	return &authMongoRepo{
 		collection: db.Collection("users"),
 	}
@@ -63,11 +65,38 @@ func (r *authMongoRepo) FindByEmail(ctx context.Context, email string) (*domain.
 	}
 
 	return &domain.User{
-		ID:        doc.ID.Hex(),
-		FullName:  doc.FullName,
-		Email:     doc.Email,
-		Password:  doc.HashedPassword,
-		Gender:    doc.Gender,
-		CreatedAt: doc.CreatedAt,
+		ID:                doc.ID.Hex(),
+		FullName:          doc.FullName,
+		Email:             doc.Email,
+		Password:          doc.HashedPassword,
+		Gender:            doc.Gender,
+		ProfilePictureURL: doc.ProfilePicture,
+		RestDays:          doc.RestDays,
+		CreatedAt:         doc.CreatedAt,
+	}, nil
+}
+
+// FindByID looks up a user by their ObjectID hex string.
+func (r *authMongoRepo) FindByID(ctx context.Context, id string) (*domain.User, error) {
+	oid, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return nil, errors.New("invalid user id")
+	}
+	var doc userDocument
+	if err := r.collection.FindOne(ctx, bson.M{"_id": oid}).Decode(&doc); err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &domain.User{
+		ID:                doc.ID.Hex(),
+		FullName:          doc.FullName,
+		Email:             doc.Email,
+		Password:          doc.HashedPassword,
+		Gender:            doc.Gender,
+		ProfilePictureURL: doc.ProfilePicture,
+		RestDays:          doc.RestDays,
+		CreatedAt:         doc.CreatedAt,
 	}, nil
 }

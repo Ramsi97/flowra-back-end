@@ -10,7 +10,8 @@ type ScheduleItem struct {
 	Title     string    `json:"title"`
 	StartTime time.Time `json:"start_time"`
 	EndTime   time.Time `json:"end_time"`
-	Status    string    `json:"status"` // "pending" | "done" | "skipped"
+	IsHard    bool      `json:"is_hard"` // if true, ripple stops/conflicts
+	Status    string    `json:"status"`  // "pending" | "done" | "skipped"
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
