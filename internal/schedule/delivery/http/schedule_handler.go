@@ -146,3 +146,27 @@ func (h *ScheduleHandler) RemoveTask(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "item removed from schedule, task reset to todo"})
 }
+
+// AI Assistant Handlers
+
+type aiScheduleRequest struct {
+	Date   string `json:"date" binding:"required"`
+	Prompt string `json:"prompt" binding:"required"`
+}
+
+func (h *ScheduleHandler) AISchedule(c *gin.Context) {
+	userID := c.GetString("userID")
+	var req aiScheduleRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	items, err := h.usecase.AISchedule(c.Request.Context(), userID, req.Date, req.Prompt)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, items)
+}

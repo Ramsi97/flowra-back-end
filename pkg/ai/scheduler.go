@@ -1,27 +1,42 @@
 package ai
 
 import (
+	"fmt"
 	"sort"
 	"time"
 
 	taskdomain "github.com/Ramsi97/flowra-back-end/internal/task/domain"
 )
 
-// UserPrefs holds scheduling preferences.
+// UserPrefs holds scheduling preferences for a specific day.
 type UserPrefs struct {
-	WorkStart time.Time // only Hour/Minute are used; date is ignored
-	WorkEnd   time.Time
-	RestDays  []int // 0=Sun, 6=Sat
+	WorkStart    time.Time // Specific date/time when work starts
+	WorkEnd      time.Time // Specific date/time when work ends
+	RestDays     []int     // 0=Sun, 6=Sat
+	WorkDayStart string    // raw "HH:MM"
+	WorkDayEnd   string    // raw "HH:MM"
 }
 
-// DefaultPrefs returns the default 9 AM – 6 PM working window with Sat/Sun rest.
+// DefaultPrefs returns a 9 AM – 6 PM window for the given date.
 func DefaultPrefs(forDate time.Time) UserPrefs {
 	y, m, d := forDate.Date()
 	return UserPrefs{
-		WorkStart: time.Date(y, m, d, 9, 0, 0, 0, time.UTC),
-		WorkEnd:   time.Date(y, m, d, 18, 0, 0, 0, time.UTC),
-		RestDays:  []int{0, 6},
+		WorkStart:    time.Date(y, m, d, 9, 0, 0, 0, time.UTC),
+		WorkEnd:      time.Date(y, m, d, 18, 0, 0, 0, time.UTC),
+		RestDays:     []int{0, 6},
+		WorkDayStart: "09:00",
+		WorkDayEnd:   "18:00",
 	}
+}
+
+// ParseWorkTime converts a "HH:MM" string and a date into a UTC time.Time.
+func ParseWorkTime(date time.Time, clock string) (time.Time, error) {
+	var h, m int
+	if _, err := fmt.Sscanf(clock, "%d:%d", &h, &m); err != nil {
+		return time.Time{}, err
+	}
+	y, mon, d := date.Date()
+	return time.Date(y, mon, d, h, m, 0, 0, time.UTC), nil
 }
 
 // Slot is the output of the AI scheduler: a proposed time block for one task.
@@ -32,14 +47,7 @@ type Slot struct {
 	EndTime   time.Time
 }
 
-// BuildSchedule is the V1 stub scheduler.
-//
-// It sorts todo tasks by (Priority ASC, Deadline ASC) and packs them
-// sequentially inside the user's work window.
-//
-// Now supports:
-// 1. Rest Days: Returns empty if today is a rest day.
-// 2. Exceptions: Applies date-specific overrides from the 'exceptions' map.
+// BuildSchedule packs tasks into the user's work window.
 func BuildSchedule(tasks []taskdomain.Task, exceptions map[string]taskdomain.TaskException, prefs UserPrefs) ([]Slot, error) {
 	// 1. Check if today is a rest day.
 	today := int(prefs.WorkStart.Weekday())
@@ -56,7 +64,6 @@ func BuildSchedule(tasks []taskdomain.Task, exceptions map[string]taskdomain.Tas
 			continue
 		}
 
-		// Apply Exception if exists for this task.
 		if ex, ok := exceptions[t.ID]; ok {
 			if ex.IsSkipped {
 				continue
@@ -68,7 +75,7 @@ func BuildSchedule(tasks []taskdomain.Task, exceptions map[string]taskdomain.Tas
 		todos = append(todos, t)
 	}
 
-	// 3. Sort: priority ascending (1 = highest), then earliest deadline first.
+	// 3. Sort: priority ascending, then earliest deadline.
 	sort.Slice(todos, func(i, j int) bool {
 		if todos[i].Priority != todos[j].Priority {
 			return todos[i].Priority < todos[j].Priority
@@ -80,22 +87,20 @@ func BuildSchedule(tasks []taskdomain.Task, exceptions map[string]taskdomain.Tas
 	cursor := prefs.WorkStart
 
 	for _, task := range todos {
-		dur := parseDuration(task.Duration)
+		dur, _ := time.ParseDuration(task.Duration)
 		if dur <= 0 {
-			dur = 60 * time.Minute
+			dur = 30 * time.Minute // Defaulting to 30m as requested
 		}
 
-		// Handle NewStartTime exception if it exists.
+		// Handle NewStartTime exception.
 		if ex, ok := exceptions[task.ID]; ok && ex.NewStartTime != nil {
-			// If an exception forces a start time, we jump the cursor.
-			// This might create a gap (intended).
 			if ex.NewStartTime.After(cursor) {
 				cursor = *ex.NewStartTime
 			}
 		}
 
 		if cursor.Add(dur).After(prefs.WorkEnd) {
-			break // no more room today
+			break
 		}
 
 		slots = append(slots, Slot{
@@ -108,12 +113,4 @@ func BuildSchedule(tasks []taskdomain.Task, exceptions map[string]taskdomain.Tas
 	}
 
 	return slots, nil
-}
-
-func parseDuration(s string) time.Duration {
-	d, err := time.ParseDuration(s)
-	if err != nil {
-		return 0
-	}
-	return d
 }

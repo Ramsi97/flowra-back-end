@@ -1,6 +1,9 @@
 package domain
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
 // Task represents a user-defined piece of work.
 type Task struct {
@@ -47,4 +50,8 @@ type TaskUseCase interface {
 	ListByUser(userID string) ([]Task, error)
 	Update(userID, id string, input UpdateTaskInput) (*Task, error)
 	Delete(userID, id string) error
+
+	// AI Assistant methods
+	SuggestDraftTasks(ctx context.Context, description string) ([]Task, error)
+	RefineDraftTasks(ctx context.Context, drafts []Task, instruction string) ([]Task, error)
 }

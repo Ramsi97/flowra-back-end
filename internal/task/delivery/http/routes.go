@@ -12,5 +12,9 @@ func SetupRoutes(router *gin.Engine, h *TaskHandler, jwtMiddleware gin.HandlerFu
 		tasks.GET("/:id", h.GetTask)
 		tasks.PUT("/:id", h.UpdateTask)
 		tasks.DELETE("/:id", h.DeleteTask)
+
+		// AI Assistant routes
+		tasks.POST("/ai/suggest", h.SuggestTasks)
+		tasks.POST("/ai/chat", h.RefineTasks)
 	}
 }

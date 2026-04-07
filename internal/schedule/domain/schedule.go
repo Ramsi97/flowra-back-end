@@ -1,6 +1,9 @@
 package domain
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
 // ScheduleItem is a single scheduled block of time linked to a task.
 type ScheduleItem struct {
@@ -43,4 +46,7 @@ type ScheduleUseCase interface {
 	ClearMonth(userID, month string) error
 	Fix(userID string, currentTime time.Time) ([]ScheduleItem, error)
 	RemoveTask(userID, itemID string) error
+
+	// AI Assistant methods
+	AISchedule(ctx context.Context, userID, date, prompt string) ([]ScheduleItem, error)
 }

@@ -18,5 +18,8 @@ func SetupRoutes(router *gin.Engine, h *ScheduleHandler, jwtMiddleware gin.Handl
 		sched.DELETE("/day", h.ClearDay)
 		sched.DELETE("/week", h.ClearWeek)
 		sched.DELETE("/month", h.ClearMonth)
+
+		// AI Assistant routes
+		sched.POST("/ai/generate", h.AISchedule)
 	}
 }

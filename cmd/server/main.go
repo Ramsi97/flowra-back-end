@@ -17,6 +17,7 @@ import (
 	taskHandler "github.com/Ramsi97/flowra-back-end/internal/task/delivery/http"
 	taskRepo "github.com/Ramsi97/flowra-back-end/internal/task/repository/mongo"
 	taskUseCase "github.com/Ramsi97/flowra-back-end/internal/task/usecase"
+	"github.com/Ramsi97/flowra-back-end/pkg/ai"
 	"github.com/Ramsi97/flowra-back-end/pkg/cloudinary"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -55,6 +56,15 @@ func main() {
 		log.Printf("Warning: Cloudinary client failed to initialize: %v", err)
 	}
 
+	// Initialize Gemini
+	gemCtx := context.Background()
+	gemini, err := ai.NewGeminiClient(gemCtx, cfg.GeminiAPIKey)
+	if err != nil {
+		log.Printf("Warning: Gemini AI client failed to initialize: %v", err)
+	} else {
+		defer gemini.Close()
+	}
+
 	// Initialize Repositories
 	ar := authRepo.NewAuthMongoRepo(db)
 	tr := taskRepo.NewTaskMongoRepo(db)
@@ -63,8 +73,8 @@ func main() {
 
 	// Initialize UseCases
 	au := authUseCase.NewAuthUseCase(ar, cfg.JWTSecret)
-	tu := taskUseCase.NewTaskUseCase(tr)
-	su := schedUseCase.NewScheduleUseCase(sr, tr, ex, ar)
+	tu := taskUseCase.NewTaskUseCase(tr, gemini)
+	su := schedUseCase.NewScheduleUseCase(sr, tr, ex, ar, gemini)
 
 	// Initialize Handlers
 	ah := authHandler.NewAuthHandler(au, cld)

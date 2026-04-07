@@ -12,48 +12,52 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-// userDocument is the MongoDB representation of a user.
-// We store the password hash here, not in the domain User.
 type userDocument struct {
-	ID             primitive.ObjectID `bson:"_id,omitempty"`
-	FullName       string             `bson:"full_name"`
-	Email          string             `bson:"email"`
-	HashedPassword string             `bson:"hashed_password"`
-	Gender         string             `bson:"gender"`
-	ProfilePicture string             `bson:"profile_picture_url,omitempty"`
-	RestDays       []int              `bson:"rest_days"`
-	CreatedAt      time.Time          `bson:"created_at"`
+	ID                primitive.ObjectID `bson:"_id,omitempty"`
+	FullName          string             `bson:"full_name"`
+	Email             string             `bson:"email"`
+	Password          string             `bson:"password"`
+	Gender            string             `bson:"gender"`
+	ProfilePictureURL string             `bson:"profile_picture_url"`
+	RestDays          []int              `bson:"rest_days"`
+	WorkDayStart      string             `bson:"work_day_start"`
+	WorkDayEnd        string             `bson:"work_day_end"`
+	CreatedAt         time.Time          `bson:"created_at"`
 }
 
 type authMongoRepo struct {
 	collection *mongo.Collection
 }
 
-// NewAuthMongoRepo creates a new MongoDB-backed AuthRepository.
 func NewAuthMongoRepo(db *mongo.Database) interfaces.AuthRepository {
 	return &authMongoRepo{
 		collection: db.Collection("users"),
 	}
 }
 
-// CreateUser inserts a new user document into MongoDB.
-// The user.Password field is expected to already be hashed.
 func (r *authMongoRepo) CreateUser(ctx context.Context, user *domain.User) error {
 	doc := userDocument{
-		ID:             primitive.NewObjectID(),
-		FullName:       user.FullName,
-		Email:          user.Email,
-		HashedPassword: user.Password, // already hashed by usecase
-		Gender:         user.Gender,
-		ProfilePicture: user.ProfilePictureURL,
-		CreatedAt:      time.Now(),
+		ID:                primitive.NewObjectID(),
+		FullName:          user.FullName,
+		Email:             user.Email,
+		Password:          user.Password,
+		Gender:            user.Gender,
+		ProfilePictureURL: user.ProfilePictureURL,
+		RestDays:          user.RestDays,
+		WorkDayStart:      user.WorkDayStart,
+		WorkDayEnd:        user.WorkDayEnd,
+		CreatedAt:         user.CreatedAt,
 	}
+
 	_, err := r.collection.InsertOne(ctx, doc)
-	return err
+	if err != nil {
+		return err
+	}
+
+	user.ID = doc.ID.Hex()
+	return nil
 }
 
-// FindByEmail looks up a user by email address.
-// Returns the domain.User with the hashed password in the Password field.
 func (r *authMongoRepo) FindByEmail(ctx context.Context, email string) (*domain.User, error) {
 	var doc userDocument
 	err := r.collection.FindOne(ctx, bson.M{"email": email}).Decode(&doc)
@@ -68,35 +72,41 @@ func (r *authMongoRepo) FindByEmail(ctx context.Context, email string) (*domain.
 		ID:                doc.ID.Hex(),
 		FullName:          doc.FullName,
 		Email:             doc.Email,
-		Password:          doc.HashedPassword,
+		Password:          doc.Password,
 		Gender:            doc.Gender,
-		ProfilePictureURL: doc.ProfilePicture,
+		ProfilePictureURL: doc.ProfilePictureURL,
 		RestDays:          doc.RestDays,
+		WorkDayStart:      doc.WorkDayStart,
+		WorkDayEnd:        doc.WorkDayEnd,
 		CreatedAt:         doc.CreatedAt,
 	}, nil
 }
 
-// FindByID looks up a user by their ObjectID hex string.
 func (r *authMongoRepo) FindByID(ctx context.Context, id string) (*domain.User, error) {
 	oid, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
-		return nil, errors.New("invalid user id")
+		return nil, err
 	}
+
 	var doc userDocument
-	if err := r.collection.FindOne(ctx, bson.M{"_id": oid}).Decode(&doc); err != nil {
+	err = r.collection.FindOne(ctx, bson.M{"_id": oid}).Decode(&doc)
+	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
 			return nil, nil
 		}
 		return nil, err
 	}
+
 	return &domain.User{
 		ID:                doc.ID.Hex(),
 		FullName:          doc.FullName,
 		Email:             doc.Email,
-		Password:          doc.HashedPassword,
+		Password:          doc.Password,
 		Gender:            doc.Gender,
-		ProfilePictureURL: doc.ProfilePicture,
+		ProfilePictureURL: doc.ProfilePictureURL,
 		RestDays:          doc.RestDays,
+		WorkDayStart:      doc.WorkDayStart,
+		WorkDayEnd:        doc.WorkDayEnd,
 		CreatedAt:         doc.CreatedAt,
 	}, nil
 }

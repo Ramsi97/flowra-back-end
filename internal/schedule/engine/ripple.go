@@ -1,27 +1,20 @@
 package engine
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/Ramsi97/flowra-back-end/internal/schedule/domain"
 )
 
-// RippleResult contains the updated items and any conflicts encountered.
 type RippleResult struct {
 	Items     []domain.ScheduleItem
-	Conflicts []domain.ScheduleItem // Soft conflicts: items that overlap with Hard tasks
+	Conflicts []domain.ScheduleItem
 }
 
-const workDayEndHour = 23
-const workDayStartHour = 9
-
 // ApplyRipple pushes all items after changedIdx forward to be
-// contiguous with the changed item, respecting the day boundary and RestDays.
-//
-// New features:
-// 1. Hard Task respect: If we hit a hard task, we stop rippling and flag a conflict.
-// 2. Rest Days: If a task overflows past midnight, it skips user-defined rest days.
-func ApplyRipple(items []domain.ScheduleItem, changedIdx int, restDays []int) RippleResult {
+// contiguous with the changed item, respecting dynamic work windows and RestDays.
+func ApplyRipple(items []domain.ScheduleItem, changedIdx int, restDays []int, workDayStart, workDayEnd string) RippleResult {
 	if changedIdx >= len(items)-1 {
 		return RippleResult{Items: items}
 	}
@@ -34,12 +27,12 @@ func ApplyRipple(items []domain.ScheduleItem, changedIdx int, restDays []int) Ri
 	ref := res.Items[changedIdx]
 	cursor := ref.EndTime
 
+	// Parse work hours for overflow logic
+	startH, startM := parseClock(workDayStart, 9, 0)
+	endH, endM := parseClock(workDayEnd, 22, 0) // Defaulting to 10 PM if invalid
+
 	for i := changedIdx + 1; i < len(res.Items); i++ {
-		// If we hit a Hard task (like a meeting), the ripple MUST STOP.
-		// We flag a conflict and return early.
 		if res.Items[i].IsHard {
-			// If our current cursor (where the item should start) is after
-			// the hard task's start time, we have a conflict.
 			if cursor.After(res.Items[i].StartTime) {
 				res.Conflicts = append(res.Conflicts, res.Items[i])
 				break
@@ -48,11 +41,10 @@ func ApplyRipple(items []domain.ScheduleItem, changedIdx int, restDays []int) Ri
 
 		duration := res.Items[i].EndTime.Sub(res.Items[i].StartTime)
 
-		// Handle multi-day overflow
-		// If cursor > 11 PM or day changes, push to next work day
-		dayEnd := time.Date(cursor.Year(), cursor.Month(), cursor.Day(), workDayEndHour, 0, 0, 0, cursor.Location())
+		// Check if we hit the user's specific end of day.
+		dayEnd := time.Date(cursor.Year(), cursor.Month(), cursor.Day(), endH, endM, 0, 0, cursor.Location())
 		if cursor.After(dayEnd) || cursor.Equal(dayEnd) {
-			cursor = nextWorkDay(cursor, restDays)
+			cursor = nextWorkDay(cursor, restDays, startH, startM)
 		}
 
 		res.Items[i].StartTime = cursor
@@ -63,10 +55,17 @@ func ApplyRipple(items []domain.ScheduleItem, changedIdx int, restDays []int) Ri
 	return res
 }
 
-// nextWorkDay finds the next 9 AM start time, skipping any rest days.
-func nextWorkDay(curr time.Time, restDays []int) time.Time {
+func parseClock(clock string, defH, defM int) (int, int) {
+	var h, m int
+	if _, err := fmt.Sscanf(clock, "%d:%d", &h, &m); err != nil {
+		return defH, defM
+	}
+	return h, m
+}
+
+func nextWorkDay(curr time.Time, restDays []int, startH, startM int) time.Time {
 	next := curr.AddDate(0, 0, 1)
-	next = time.Date(next.Year(), next.Month(), next.Day(), workDayStartHour, 0, 0, 0, next.Location())
+	next = time.Date(next.Year(), next.Month(), next.Day(), startH, startM, 0, 0, next.Location())
 
 	for isRestDay(next, restDays) {
 		next = next.AddDate(0, 0, 1)

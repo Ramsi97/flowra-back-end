@@ -15,7 +15,6 @@ func NewTaskHandler(uc domain.TaskUseCase) *TaskHandler {
 	return &TaskHandler{usecase: uc}
 }
 
-// POST /tasks
 func (h *TaskHandler) CreateTask(c *gin.Context) {
 	userID := c.GetString("userID")
 	var task domain.Task
@@ -30,21 +29,6 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 	c.JSON(http.StatusCreated, task)
 }
 
-// GET /tasks
-func (h *TaskHandler) ListTasks(c *gin.Context) {
-	userID := c.GetString("userID")
-	tasks, err := h.usecase.ListByUser(userID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	if tasks == nil {
-		tasks = []domain.Task{}
-	}
-	c.JSON(http.StatusOK, tasks)
-}
-
-// GET /tasks/:id
 func (h *TaskHandler) GetTask(c *gin.Context) {
 	userID := c.GetString("userID")
 	id := c.Param("id")
@@ -56,7 +40,16 @@ func (h *TaskHandler) GetTask(c *gin.Context) {
 	c.JSON(http.StatusOK, task)
 }
 
-// PUT /tasks/:id
+func (h *TaskHandler) ListTasks(c *gin.Context) {
+	userID := c.GetString("userID")
+	tasks, err := h.usecase.ListByUser(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, tasks)
+}
+
 func (h *TaskHandler) UpdateTask(c *gin.Context) {
 	userID := c.GetString("userID")
 	id := c.Param("id")
@@ -73,7 +66,6 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 	c.JSON(http.StatusOK, updated)
 }
 
-// DELETE /tasks/:id
 func (h *TaskHandler) DeleteTask(c *gin.Context) {
 	userID := c.GetString("userID")
 	id := c.Param("id")
@@ -82,4 +74,47 @@ func (h *TaskHandler) DeleteTask(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "task deleted"})
+}
+
+// AI Assistant Handlers
+
+type suggestRequest struct {
+	Description string `json:"description" binding:"required"`
+}
+
+func (h *TaskHandler) SuggestTasks(c *gin.Context) {
+	var req suggestRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	drafts, err := h.usecase.SuggestDraftTasks(c.Request.Context(), req.Description)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, drafts)
+}
+
+type refineRequest struct {
+	Drafts      []domain.Task `json:"drafts" binding:"required"`
+	Instruction string        `json:"instruction" binding:"required"`
+}
+
+func (h *TaskHandler) RefineTasks(c *gin.Context) {
+	var req refineRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	updated, err := h.usecase.RefineDraftTasks(c.Request.Context(), req.Drafts, req.Instruction)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, updated)
 }
