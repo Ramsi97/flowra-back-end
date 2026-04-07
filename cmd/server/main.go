@@ -10,6 +10,8 @@ import (
 	authHandler "github.com/Ramsi97/flowra-back-end/internal/auth/delivery/http"
 	authRepo "github.com/Ramsi97/flowra-back-end/internal/auth/repository/mongo"
 	authUseCase "github.com/Ramsi97/flowra-back-end/internal/auth/usecase"
+	focusHandler "github.com/Ramsi97/flowra-back-end/internal/focus/delivery/http"
+	focusUseCase "github.com/Ramsi97/flowra-back-end/internal/focus/usecase"
 	"github.com/Ramsi97/flowra-back-end/internal/middleware"
 	schedHandler "github.com/Ramsi97/flowra-back-end/internal/schedule/delivery/http"
 	schedRepo "github.com/Ramsi97/flowra-back-end/internal/schedule/repository/mongo"
@@ -75,11 +77,13 @@ func main() {
 	au := authUseCase.NewAuthUseCase(ar, cfg.JWTSecret)
 	tu := taskUseCase.NewTaskUseCase(tr, gemini)
 	su := schedUseCase.NewScheduleUseCase(sr, tr, ex, ar, gemini)
+	fu := focusUseCase.NewFocusUseCase(ar, sr)
 
 	// Initialize Handlers
 	ah := authHandler.NewAuthHandler(au, cld)
 	th := taskHandler.NewTaskHandler(tu)
 	sh := schedHandler.NewScheduleHandler(su)
+	fh := focusHandler.NewFocusHandler(fu)
 
 	// Setup Router
 	r := gin.Default()
@@ -94,8 +98,14 @@ func main() {
 
 	// Setup Routes
 	authHandler.SetupRoutes(r, ah, jwtMid)
-	taskHandler.SetupRoutes(r, th, jwtMid)
-	schedHandler.SetupRoutes(r, sh, jwtMid)
+
+	protected := r.Group("/")
+	protected.Use(jwtMid)
+	{
+		taskHandler.SetupRoutes(protected, th)
+		schedHandler.SetupRoutes(protected, sh)
+		focusHandler.SetupRoutes(protected, fh)
+	}
 
 	log.Printf("Server starting on port %s", cfg.Port)
 	if err := r.Run(":" + cfg.Port); err != nil {

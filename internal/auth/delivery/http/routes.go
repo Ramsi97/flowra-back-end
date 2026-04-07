@@ -4,19 +4,12 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// SetupRoutes registers auth routes on the provided router.
-// jwtMiddleware is applied only to protected endpoints.
+// SetupRoutes registers authentication routes.
 func SetupRoutes(router *gin.Engine, h *AuthHandler, jwtMiddleware gin.HandlerFunc) {
 	auth := router.Group("/auth")
 	{
-		auth.POST("/register", h.Register)
 		auth.POST("/login", h.Login)
-
-		// Protected routes
-		protected := auth.Group("")
-		protected.Use(jwtMiddleware)
-		{
-			protected.POST("/logout", h.Logout)
-		}
+		auth.POST("/register", h.Register)
+		auth.POST("/logout", jwtMiddleware, h.Logout)
 	}
 }

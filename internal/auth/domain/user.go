@@ -16,6 +16,8 @@ type User struct {
 	RestDays          []int                 `form:"rest_days"         json:"rest_days"` // 0=Sun, 6=Sat
 	WorkDayStart      string                `form:"work_day_start"    json:"work_day_start"`
 	WorkDayEnd        string                `form:"work_day_end"      json:"work_day_end"`
+	BlockedApps       []string              `form:"blocked_apps"      json:"blocked_apps"`
+	FocusModeEnabled  bool                  `form:"focus_mode_enabled" json:"focus_mode_enabled"`
 	CreatedAt         time.Time             `form:"created_at"        json:"created_at"`
 }
 

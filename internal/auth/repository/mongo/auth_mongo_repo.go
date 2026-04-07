@@ -22,6 +22,8 @@ type userDocument struct {
 	RestDays          []int              `bson:"rest_days"`
 	WorkDayStart      string             `bson:"work_day_start"`
 	WorkDayEnd        string             `bson:"work_day_end"`
+	BlockedApps       []string           `bson:"blocked_apps"`
+	FocusModeEnabled  bool               `bson:"focus_mode_enabled"`
 	CreatedAt         time.Time          `bson:"created_at"`
 }
 
@@ -46,6 +48,8 @@ func (r *authMongoRepo) CreateUser(ctx context.Context, user *domain.User) error
 		RestDays:          user.RestDays,
 		WorkDayStart:      user.WorkDayStart,
 		WorkDayEnd:        user.WorkDayEnd,
+		BlockedApps:       user.BlockedApps,
+		FocusModeEnabled:  user.FocusModeEnabled,
 		CreatedAt:         user.CreatedAt,
 	}
 
@@ -78,6 +82,8 @@ func (r *authMongoRepo) FindByEmail(ctx context.Context, email string) (*domain.
 		RestDays:          doc.RestDays,
 		WorkDayStart:      doc.WorkDayStart,
 		WorkDayEnd:        doc.WorkDayEnd,
+		BlockedApps:       doc.BlockedApps,
+		FocusModeEnabled:  doc.FocusModeEnabled,
 		CreatedAt:         doc.CreatedAt,
 	}, nil
 }
@@ -107,6 +113,31 @@ func (r *authMongoRepo) FindByID(ctx context.Context, id string) (*domain.User, 
 		RestDays:          doc.RestDays,
 		WorkDayStart:      doc.WorkDayStart,
 		WorkDayEnd:        doc.WorkDayEnd,
+		BlockedApps:       doc.BlockedApps,
+		FocusModeEnabled:  doc.FocusModeEnabled,
 		CreatedAt:         doc.CreatedAt,
 	}, nil
+}
+
+func (r *authMongoRepo) UpdateUser(ctx context.Context, user *domain.User) error {
+	oid, err := primitive.ObjectIDFromHex(user.ID)
+	if err != nil {
+		return err
+	}
+
+	update := bson.M{
+		"$set": bson.M{
+			"full_name":           user.FullName,
+			"gender":              user.Gender,
+			"profile_picture_url": user.ProfilePictureURL,
+			"rest_days":           user.RestDays,
+			"work_day_start":      user.WorkDayStart,
+			"work_day_end":        user.WorkDayEnd,
+			"blocked_apps":        user.BlockedApps,
+			"focus_mode_enabled":  user.FocusModeEnabled,
+		},
+	}
+
+	_, err = r.collection.UpdateOne(ctx, bson.M{"_id": oid}, update)
+	return err
 }

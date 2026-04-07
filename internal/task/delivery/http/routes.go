@@ -3,9 +3,8 @@ package http
 import "github.com/gin-gonic/gin"
 
 // SetupRoutes registers all task routes. All routes are JWT-protected.
-func SetupRoutes(router *gin.Engine, h *TaskHandler, jwtMiddleware gin.HandlerFunc) {
+func SetupRoutes(router *gin.RouterGroup, h *TaskHandler) {
 	tasks := router.Group("/tasks")
-	tasks.Use(jwtMiddleware)
 	{
 		tasks.POST("", h.CreateTask)
 		tasks.GET("", h.ListTasks)
