@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/google/generative-ai-go/genai"
 	"google.golang.org/api/option"
@@ -23,7 +24,7 @@ func NewGeminiClient(ctx context.Context, apiKey string) (*GeminiClient, error) 
 		return nil, fmt.Errorf("failed to create gemini client: %w", err)
 	}
 
-	model := client.GenerativeModel("gemini-1.5-flash")
+	model := client.GenerativeModel("gemini-flash-latest")
 	// For structured JSON output, we set the response MIME type if supported,
 	// or rely on the system prompt for extraction.
 	model.ResponseMIMEType = "application/json"
@@ -45,9 +46,26 @@ func (c *GeminiClient) AnalyzeIntent(ctx context.Context, systemPrompt, userProm
 		Parts: []genai.Part{genai.Text(systemPrompt)},
 	}
 
-	resp, err := c.model.GenerateContent(ctx, genai.Text(userPrompt))
-	if err != nil {
-		return fmt.Errorf("failed to generate content: %w", err)
+	var resp *genai.GenerateContentResponse
+	var err error
+
+	maxRetries := 3
+	backoff := 2 * time.Second
+
+	for i := 0; i <= maxRetries; i++ {
+		resp, err = c.model.GenerateContent(ctx, genai.Text(userPrompt))
+		if err == nil {
+			break
+		}
+
+		// If it's a rate limit error or transient issue, retry
+		// Note: Detailed error checking for 429 can be added here if needed
+		if i < maxRetries {
+			time.Sleep(backoff)
+			backoff *= 2
+			continue
+		}
+		return fmt.Errorf("failed to generate content after %d retries: %w", maxRetries, err)
 	}
 
 	if len(resp.Candidates) == 0 || len(resp.Candidates[0].Content.Parts) == 0 {
