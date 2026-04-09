@@ -93,3 +93,40 @@ func (u *authusecase) Login(email, password string) (domain.UserResponse, error)
 func (u *authusecase) Logout() error {
 	return nil
 }
+
+// UpdateProfile updates user profile information.
+func (u *authusecase) UpdateProfile(ctx context.Context, userID string, update *domain.User) error {
+	user, err := u.repo.FindByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+	if user == nil {
+		return errors.New("user not found")
+	}
+
+	// Update only specific fields if they are provided
+	if update.FullName != "" {
+		user.FullName = update.FullName
+	}
+	if update.Gender != "" {
+		user.Gender = update.Gender
+	}
+	if update.ProfilePictureURL != "" {
+		user.ProfilePictureURL = update.ProfilePictureURL
+	}
+	if update.RestDays != nil {
+		user.RestDays = update.RestDays
+	}
+	if update.WorkDayStart != "" {
+		user.WorkDayStart = update.WorkDayStart
+	}
+	if update.WorkDayEnd != "" {
+		user.WorkDayEnd = update.WorkDayEnd
+	}
+	if update.BlockedApps != nil {
+		user.BlockedApps = update.BlockedApps
+	}
+	user.FocusModeEnabled = update.FocusModeEnabled
+
+	return u.repo.UpdateUser(ctx, user)
+}

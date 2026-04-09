@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"context"
 	"mime/multipart"
 	"time"
 )
@@ -30,4 +31,5 @@ type AuthUseCase interface {
 	Login(email, password string) (UserResponse, error)
 	Logout() error
 	Register(user *User) error
+	UpdateProfile(ctx context.Context, userID string, user *User) error
 }

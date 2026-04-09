@@ -11,5 +11,6 @@ func SetupRoutes(router *gin.Engine, h *AuthHandler, jwtMiddleware gin.HandlerFu
 		auth.POST("/login", h.Login)
 		auth.POST("/register", h.Register)
 		auth.POST("/logout", jwtMiddleware, h.Logout)
+		auth.PUT("/profile", jwtMiddleware, h.UpdateProfile)
 	}
 }

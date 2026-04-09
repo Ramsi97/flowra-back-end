@@ -86,3 +86,38 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "logged out"})
 }
+
+// UpdateProfile godoc
+// PUT /auth/profile (protected)
+func (h *AuthHandler) UpdateProfile(c *gin.Context) {
+	userID := c.GetString("userID")
+	var user domain.User
+	if err := c.ShouldBind(&user); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Handle updated profile picture upload if file is present
+	if user.ProfilePicture != nil {
+		file, err := user.ProfilePicture.Open()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to open profile picture"})
+			return
+		}
+		defer file.Close()
+
+		url, err := h.cld.UploadImage(c.Request.Context(), file, user.Email)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to upload profile picture"})
+			return
+		}
+		user.ProfilePictureURL = url
+	}
+
+	if err := h.usecase.UpdateProfile(c.Request.Context(), userID, &user); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "profile updated successfully"})
+}
