@@ -20,11 +20,13 @@ func (h *ScheduleHandler) Generate(c *gin.Context) {
 	userID := c.GetString("userID")
 	var req domain.GenerateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		c.Error(err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 	items, err := h.usecase.Generate(userID, req.Date)
 	if err != nil {
+		c.Error(err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -36,11 +38,13 @@ func (h *ScheduleHandler) Regenerate(c *gin.Context) {
 	userID := c.GetString("userID")
 	var req domain.GenerateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		c.Error(err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 	items, err := h.usecase.Regenerate(userID, req.Date)
 	if err != nil {
+		c.Error(err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -53,11 +57,13 @@ func (h *ScheduleHandler) UpdateItem(c *gin.Context) {
 	id := c.Param("id")
 	var input domain.UpdateItemInput
 	if err := c.ShouldBindJSON(&input); err != nil {
+		c.Error(err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 	items, err := h.usecase.UpdateItem(userID, id, input)
 	if err != nil {
+		c.Error(err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -69,6 +75,7 @@ func (h *ScheduleHandler) DeleteItem(c *gin.Context) {
 	userID := c.GetString("userID")
 	id := c.Param("id")
 	if err := h.usecase.DeleteItem(userID, id); err != nil {
+		c.Error(err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -84,6 +91,7 @@ func (h *ScheduleHandler) ClearDay(c *gin.Context) {
 		return
 	}
 	if err := h.usecase.ClearDay(userID, date); err != nil {
+		c.Error(err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -99,6 +107,7 @@ func (h *ScheduleHandler) ClearWeek(c *gin.Context) {
 		return
 	}
 	if err := h.usecase.ClearWeek(userID, start); err != nil {
+		c.Error(err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -114,6 +123,7 @@ func (h *ScheduleHandler) ClearMonth(c *gin.Context) {
 		return
 	}
 	if err := h.usecase.ClearMonth(userID, month); err != nil {
+		c.Error(err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -125,11 +135,13 @@ func (h *ScheduleHandler) Fix(c *gin.Context) {
 	userID := c.GetString("userID")
 	var req domain.FixRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		c.Error(err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 	items, err := h.usecase.Fix(userID, req.CurrentTime)
 	if err != nil {
+		c.Error(err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -141,6 +153,7 @@ func (h *ScheduleHandler) RemoveTask(c *gin.Context) {
 	userID := c.GetString("userID")
 	id := c.Param("id")
 	if err := h.usecase.RemoveTask(userID, id); err != nil {
+		c.Error(err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -158,12 +171,14 @@ func (h *ScheduleHandler) AISchedule(c *gin.Context) {
 	userID := c.GetString("userID")
 	var req aiScheduleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		c.Error(err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	items, err := h.usecase.AISchedule(c.Request.Context(), userID, req.Date, req.Prompt)
 	if err != nil {
+		c.Error(err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

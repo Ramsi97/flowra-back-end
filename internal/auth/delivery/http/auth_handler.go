@@ -27,6 +27,7 @@ func NewAuthHandler(uc domain.AuthUseCase, cld *cloudinary.Client) *AuthHandler 
 func (h *AuthHandler) Register(c *gin.Context) {
 	var user domain.User
 	if err := c.ShouldBind(&user); err != nil {
+		c.Error(err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -35,6 +36,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	if user.ProfilePicture != nil {
 		file, err := user.ProfilePicture.Open()
 		if err != nil {
+			c.Error(err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to open profile picture"})
 			return
 		}
@@ -42,6 +44,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 
 		url, err := h.cld.UploadImage(c.Request.Context(), file, user.Email)
 		if err != nil {
+			c.Error(err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to upload profile picture"})
 			return
 		}
@@ -49,6 +52,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	}
 
 	if err := h.usecase.Register(&user); err != nil {
+		c.Error(err)
 		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 		return
 	}
@@ -64,12 +68,14 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		Password string `json:"password" form:"password"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
+		c.Error(err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	resp, err := h.usecase.Login(req.Email, req.Password)
 	if err != nil {
+		c.Error(err)
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
@@ -81,6 +87,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 // POST /auth/logout  (protected)
 func (h *AuthHandler) Logout(c *gin.Context) {
 	if err := h.usecase.Logout(); err != nil {
+		c.Error(err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -93,6 +100,7 @@ func (h *AuthHandler) UpdateProfile(c *gin.Context) {
 	userID := c.GetString("userID")
 	var user domain.User
 	if err := c.ShouldBind(&user); err != nil {
+		c.Error(err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -101,6 +109,7 @@ func (h *AuthHandler) UpdateProfile(c *gin.Context) {
 	if user.ProfilePicture != nil {
 		file, err := user.ProfilePicture.Open()
 		if err != nil {
+			c.Error(err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to open profile picture"})
 			return
 		}
@@ -108,6 +117,7 @@ func (h *AuthHandler) UpdateProfile(c *gin.Context) {
 
 		url, err := h.cld.UploadImage(c.Request.Context(), file, user.Email)
 		if err != nil {
+			c.Error(err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to upload profile picture"})
 			return
 		}
@@ -115,6 +125,7 @@ func (h *AuthHandler) UpdateProfile(c *gin.Context) {
 	}
 
 	if err := h.usecase.UpdateProfile(c.Request.Context(), userID, &user); err != nil {
+		c.Error(err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

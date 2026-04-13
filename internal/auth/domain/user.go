@@ -10,7 +10,7 @@ type User struct {
 	ID                string                `form:"id"                json:"id"`
 	FullName          string                `form:"full_name"          json:"full_name"`
 	Email             string                `form:"email"             json:"email"`
-	Password          string                `form:"password"          json:"-"`
+	Password          string                `form:"password"          json:"password"`
 	Gender            string                `form:"gender"            json:"gender"`
 	ProfilePicture    *multipart.FileHeader `form:"profile_picture"   json:"-"`
 	ProfilePictureURL string                `form:"-"                 json:"profile_picture_url"`

@@ -94,6 +94,7 @@ func main() {
 	})
 
 	// Middleware
+	r.Use(middleware.Logger())
 	jwtMid := middleware.JWTMiddleware(cfg.JWTSecret)
 
 	// Setup Routes
