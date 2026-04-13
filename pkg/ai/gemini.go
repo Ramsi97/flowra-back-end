@@ -24,7 +24,7 @@ func NewGeminiClient(ctx context.Context, apiKey string) (*GeminiClient, error) 
 		return nil, fmt.Errorf("failed to create gemini client: %w", err)
 	}
 
-	model := client.GenerativeModel("gemini-flash-latest")
+	model := client.GenerativeModel("gemini-2.5-flash")
 	// For structured JSON output, we set the response MIME type if supported,
 	// or rely on the system prompt for extraction.
 	model.ResponseMIMEType = "application/json"
@@ -84,6 +84,10 @@ func (c *GeminiClient) AnalyzeIntent(ctx context.Context, systemPrompt, userProm
 	rawJSON = strings.TrimPrefix(rawJSON, "```json")
 	rawJSON = strings.TrimSuffix(rawJSON, "```")
 	rawJSON = strings.TrimSpace(rawJSON)
+
+	// Fail-safe: Replace empty string date values with null to prevent time.Time unmarshal errors.
+	// AI models sometimes return "" instead of null despite instructions.
+	rawJSON = strings.ReplaceAll(rawJSON, ": \"\"", ": null")
 
 	if err := json.Unmarshal([]byte(rawJSON), target); err != nil {
 		return fmt.Errorf("failed to unmarshal gemini response: %w (raw: %s)", err, rawJSON)

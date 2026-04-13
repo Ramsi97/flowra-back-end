@@ -80,7 +80,17 @@ func BuildSchedule(tasks []taskdomain.Task, exceptions map[string]taskdomain.Tas
 		if todos[i].Priority != todos[j].Priority {
 			return todos[i].Priority < todos[j].Priority
 		}
-		return todos[i].Deadline.Before(todos[j].Deadline)
+		// Handle nil deadlines: tasks WITH deadlines come before tasks WITHOUT.
+		if todos[i].Deadline == nil && todos[j].Deadline != nil {
+			return false
+		}
+		if todos[i].Deadline != nil && todos[j].Deadline == nil {
+			return true
+		}
+		if todos[i].Deadline != nil && todos[j].Deadline != nil {
+			return todos[i].Deadline.Before(*todos[j].Deadline)
+		}
+		return false
 	})
 
 	var slots []Slot

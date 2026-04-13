@@ -22,7 +22,7 @@ type taskDocument struct {
 	Priority    int                `bson:"priority"`
 	IsHard      bool               `bson:"is_hard"`
 	Status      string             `bson:"status"`
-	Deadline    time.Time          `bson:"deadline"`
+	Deadline    *time.Time         `bson:"deadline"`
 	CreatedAt   time.Time          `bson:"created_at"`
 	UpdatedAt   time.Time          `bson:"updated_at"`
 }
@@ -99,7 +99,7 @@ func (r *taskMongoRepo) FindByUserID(ctx context.Context, userID string) ([]doma
 	}
 	defer cursor.Close(ctx)
 
-	var tasks []domain.Task
+	tasks := []domain.Task{}
 	for cursor.Next(ctx) {
 		var doc taskDocument
 		if err := cursor.Decode(&doc); err != nil {

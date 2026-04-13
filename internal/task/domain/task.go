@@ -7,17 +7,17 @@ import (
 
 // Task represents a user-defined piece of work.
 type Task struct {
-	ID          string    `json:"id"`
-	UserID      string    `json:"user_id"`
-	Title       string    `json:"title"`
-	Description string    `json:"description"`
-	Duration    string    `json:"duration"` // e.g. "60m", "1h30m"
-	Priority    int       `json:"priority"` // 1 = highest
-	IsHard      bool      `json:"is_hard"`  // hard deadline?
-	Status      string    `json:"status"`   // "todo" | "done" | "skipped"
-	Deadline    time.Time `json:"deadline"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID          string     `json:"id"`
+	UserID      string     `json:"user_id"`
+	Title       string     `json:"title"`
+	Description string     `json:"description"`
+	Duration    string     `json:"duration"` // e.g. "60m", "1h30m"
+	Priority    int        `json:"priority"` // 1 = highest
+	IsHard      bool       `json:"is_hard"`  // hard deadline?
+	Status      string     `json:"status"`   // "todo" | "done" | "skipped"
+	Deadline    *time.Time `json:"deadline"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
 }
 
 // RecurringTask links a recurring pattern to a Task.
